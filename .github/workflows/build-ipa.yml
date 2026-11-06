@@ -1,0 +1,47 @@
+name: Build IPA with Game File
+
+on:
+  workflow_dispatch:
+    inputs:
+      game_url:
+        description: 'Direct Download URL for NSP/XCI file'
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          brew install cmake ninja
+
+      - name: Setup prod.keys
+        env:
+          PROD_KEYS: ${{ secrets.PROD_KEYS }}
+        run: |
+          echo "$PROD_KEYS" > prod.keys
+
+      - name: Download Game File
+        run: |
+          curl -L "${{ inputs.game_url }}" -o game_file.nsp
+
+      - name: Build Project
+        run: |
+          mkdir build && cd build
+          cmake ..
+          make -j$(sysctl -n hw.ncpu)
+
+      - name: Upload Output Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nxnative-game-ipa
+          path: |
+            build/*.ipa
+            build/*.app
